@@ -30,7 +30,7 @@ type TopicConfig struct {
 func New(
 	ctx context.Context,
 	prodConfig *kafka.ProducerConfig,
-	topicConfig TopicConfig,
+	topicConfig *TopicConfig,
 ) (*Framer, error) {
 	command := make(chan *model.Command, 256)
 	document := make(chan *model.Document, 256)

@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    links:
+      - zookeeper
+    ports:
+     - 9092:9092
+
+  go-agg-framer:
+    build:
+      context: ../
+      dockerfile: Dockerfile_test
+      args:
+        SOURCE_REPO: go-agg-framer
+    env_file:
+      - ../test.env

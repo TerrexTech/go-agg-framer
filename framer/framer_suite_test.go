@@ -91,7 +91,7 @@ var _ = Describe("Framer", func() {
 		prodCfg := &kafka.ProducerConfig{
 			KafkaBrokers: brokers,
 		}
-		topicCfg := TopicConfig{
+		topicCfg := &TopicConfig{
 			CommandTopic: commandTopic,
 		}
 		f, err := New(context.Background(), prodCfg, topicCfg)
@@ -130,7 +130,7 @@ var _ = Describe("Framer", func() {
 		prodCfg := &kafka.ProducerConfig{
 			KafkaBrokers: brokers,
 		}
-		topicCfg := TopicConfig{
+		topicCfg := &TopicConfig{
 			DocumentTopic: documentTopic,
 		}
 		f, err := New(context.Background(), prodCfg, topicCfg)
@@ -175,7 +175,7 @@ var _ = Describe("Framer", func() {
 		prodCfg := &kafka.ProducerConfig{
 			KafkaBrokers: brokers,
 		}
-		topicCfg := TopicConfig{
+		topicCfg := &TopicConfig{
 			EventTopic: eventTopic,
 		}
 		f, err := New(context.Background(), prodCfg, topicCfg)

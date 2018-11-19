@@ -29,8 +29,8 @@
   name = "gopkg.in/fsnotify.v1"
 
 [[constraint]]
-  name = "github.com/TerrexTech/go-eventstore-models"
-  version = "5.0.0"
+  name = "github.com/TerrexTech/go-common-models"
+  version = "1.0.0"
 
 [[constraint]]
   name = "github.com/TerrexTech/go-kafkautils"

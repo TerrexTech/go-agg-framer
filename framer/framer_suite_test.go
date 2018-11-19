@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/TerrexTech/go-eventstore-models/model"
+	"github.com/TerrexTech/go-common-models/model"
 	"github.com/TerrexTech/uuuid"
 
 	"github.com/Shopify/sarama"
@@ -93,6 +93,7 @@ var _ = Describe("Framer", func() {
 		}
 		topicCfg := &TopicConfig{
 			CommandTopic: commandTopic,
+			EventTopic:   "-",
 		}
 		f, err := New(context.Background(), prodCfg, topicCfg)
 		Expect(err).ToNot(HaveOccurred())
@@ -100,10 +101,10 @@ var _ = Describe("Framer", func() {
 		uuid, err := uuuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		cmd := &model.Command{
-			AggregateID:   1,
-			EventAction:   "test-eventaction",
-			ServiceAction: "test-svcaction",
-			Data:          []byte(uuid.String()),
+			Action:      "test-action",
+			Source:      "test-source",
+			SourceTopic: commandTopic,
+			Data:        []byte(uuid.String()),
 		}
 		f.Command <- cmd
 
@@ -132,6 +133,7 @@ var _ = Describe("Framer", func() {
 		}
 		topicCfg := &TopicConfig{
 			DocumentTopic: documentTopic,
+			EventTopic:    "-",
 		}
 		f, err := New(context.Background(), prodCfg, topicCfg)
 		Expect(err).ToNot(HaveOccurred())
@@ -141,13 +143,9 @@ var _ = Describe("Framer", func() {
 		cid, err := uuuid.NewV4()
 		Expect(err).ToNot(HaveOccurred())
 		doc := &model.Document{
-			AggregateID:   4,
-			EventAction:   "test-action",
-			ServiceAction: "service-action",
+			Error:         "test-error",
 			CorrelationID: cid,
-			Input:         []byte("test-input"),
-			Result:        []byte("test-result"),
-			Topic:         "test-topic",
+			Topic:         documentTopic,
 			UUID:          uuid,
 		}
 		f.Document <- doc
@@ -187,8 +185,7 @@ var _ = Describe("Framer", func() {
 		Expect(err).ToNot(HaveOccurred())
 		event := &model.Event{
 			AggregateID:   4,
-			EventAction:   "test-action",
-			ServiceAction: "service-action",
+			Action:        "test-action",
 			CorrelationID: cid,
 			Data:          []byte("test-event"),
 			UUID:          uuid,

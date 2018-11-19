@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/TerrexTech/go-eventstore-models/model"
+	"github.com/TerrexTech/go-common-models/model"
 	"github.com/TerrexTech/go-kafkautils/kafka"
 	"github.com/pkg/errors"
 )
@@ -19,7 +19,8 @@ type Framer struct {
 }
 
 // TopicConfig is the configuration for topics on which respective
-// events should be produced.
+// entities should be produced. In case of Command and Document,
+// this is the default topic if one is not set in Command or Document.
 type TopicConfig struct {
 	CommandTopic  string
 	DocumentTopic string
@@ -32,6 +33,10 @@ func New(
 	prodConfig *kafka.ProducerConfig,
 	topicConfig *TopicConfig,
 ) (*Framer, error) {
+	if topicConfig.EventTopic == "" {
+		return nil, errors.New("EventTopic in TopicConfig is required")
+	}
+
 	command := make(chan *model.Command, 256)
 	document := make(chan *model.Document, 256)
 	event := make(chan *model.Event, 256)
@@ -49,7 +54,7 @@ func New(
 				return
 			case err := <-producer.Errors():
 				if err != nil && err.Err != nil {
-					parsedErr := errors.Wrap(err.Err, "Error in ESQueryRequest-Producer")
+					parsedErr := errors.Wrap(err.Err, "Error in Framer-producer")
 					log.Println(parsedErr)
 					log.Println(err)
 				}
@@ -66,80 +71,82 @@ func New(
 		lock.Unlock()
 	}()
 
-	if topicConfig.CommandTopic != "" {
-		go func() {
-			for msg := range command {
-				lock.RLock()
-				isClosed := closed
-				lock.RUnlock()
-				if isClosed {
-					return
-				}
-
-				if msg != nil {
-					marshalMsg, err := json.Marshal(msg)
-					if err != nil {
-						err = errors.Wrap(err, "Error marshalling Command")
-						log.Println(err)
-						continue
-					}
-
-					prodMsg := kafka.CreateMessage(topicConfig.CommandTopic, marshalMsg)
-					producer.Input() <- prodMsg
-				}
+	go func() {
+		for msg := range command {
+			lock.RLock()
+			isClosed := closed
+			lock.RUnlock()
+			if isClosed {
+				return
 			}
-		}()
-	}
 
-	if topicConfig.DocumentTopic != "" {
-		go func() {
-			for msg := range document {
-				lock.RLock()
-				isClosed := closed
-				lock.RUnlock()
-				if isClosed {
-					return
+			if msg != nil {
+				marshalMsg, err := json.Marshal(msg)
+				if err != nil {
+					err = errors.Wrap(err, "Error marshalling Command")
+					log.Println(err)
+					continue
 				}
 
-				if msg != nil {
-					marshalMsg, err := json.Marshal(msg)
-					if err != nil {
-						err = errors.Wrap(err, "Error marshalling Document")
-						log.Println(err)
-						continue
-					}
-
-					prodMsg := kafka.CreateMessage(topicConfig.DocumentTopic, marshalMsg)
-					producer.Input() <- prodMsg
+				topic := msg.SourceTopic
+				if topic == "" {
+					topic = topicConfig.CommandTopic
 				}
+				prodMsg := kafka.CreateMessage(topic, marshalMsg)
+				producer.Input() <- prodMsg
 			}
-		}()
-	}
+		}
+	}()
 
-	if topicConfig.EventTopic != "" {
-		go func() {
-			for msg := range event {
-				lock.RLock()
-				isClosed := closed
-				lock.RUnlock()
-				if isClosed {
-					return
-				}
-
-				if msg != nil {
-					marshalMsg, err := json.Marshal(msg)
-					if err != nil {
-						err = errors.Wrap(err, "Error marshalling Event")
-						log.Println(err)
-						continue
-					}
-
-					prodMsg := kafka.CreateMessage(topicConfig.EventTopic, marshalMsg)
-					producer.Input() <- prodMsg
-				}
+	go func() {
+		for msg := range document {
+			lock.RLock()
+			isClosed := closed
+			lock.RUnlock()
+			if isClosed {
+				return
 			}
-		}()
-	}
+
+			if msg != nil {
+				marshalMsg, err := json.Marshal(msg)
+				if err != nil {
+					err = errors.Wrap(err, "Error marshalling Document")
+					log.Println(err)
+					continue
+				}
+
+				topic := msg.Topic
+				if topic == "" {
+					topic = topicConfig.DocumentTopic
+				}
+				prodMsg := kafka.CreateMessage(topic, marshalMsg)
+				producer.Input() <- prodMsg
+			}
+		}
+	}()
+
+	go func() {
+		for msg := range event {
+			lock.RLock()
+			isClosed := closed
+			lock.RUnlock()
+			if isClosed {
+				return
+			}
+
+			if msg != nil {
+				marshalMsg, err := json.Marshal(msg)
+				if err != nil {
+					err = errors.Wrap(err, "Error marshalling Event")
+					log.Println(err)
+					continue
+				}
+
+				prodMsg := kafka.CreateMessage(topicConfig.EventTopic, marshalMsg)
+				producer.Input() <- prodMsg
+			}
+		}
+	}()
 
 	return &Framer{
 		Command:  (chan<- *model.Command)(command),
